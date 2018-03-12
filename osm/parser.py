@@ -8,6 +8,10 @@ class Handler(object):
         self.nodes = []
         self.ways = []
         self.relations = []
+        self.coords_by_id = {}
+        self.nodes_by_id = {}
+        self.ways_by_id = {}
+        self.relations_by_id = {}
     def on_coords(self, coords):
         self.coords.extend(coords)
     def on_nodes(self, nodes):
@@ -22,20 +26,42 @@ class Handler(object):
         return lng, lat
     def create_geometries(self):
         # create lookup tables
-        coords_by_id = {}
-        nodes_by_id = {}
-        ways_by_id = {}
-        relations_by_id = {}
+        # Saving coordinates in dictionary coords_by_id
         for osmid, lng, lat in self.coords:
             lng, lat = self.transform_point(lng, lat)
-            coords_by_id[osmid] = (lng, lat)
+            self.coords_by_id[osmid] = (lng, lat)
         for osmid, tags, (lng, lat) in self.nodes:
             lng, lat = self.transform_point(lng, lat)
-            nodes_by_id[osmid] = (lng, lat, tags)
+            self.nodes_by_id[osmid] = (lng, lat, tags)
+        # deleting the nodes for which we don't have coordinates
+        # (because are out of the requested area)
+        filtered_ways = []
         for osmid, tags, refs in self.ways:
-            ways_by_id[osmid] = (tags, refs)
-        for osmid, tags, members in self.relations:
-            relations_by_id[osmid] = (tags, members)
+            known_nodes = self.discard_unknown_nodes_from_ways(refs)
+            if len(known_nodes) > 1:  # Avoinding ways with no nodes or only one node
+                refs = known_nodes
+                self.ways_by_id[osmid] = (tags, refs)
+                filtered_ways.append((osmid, tags, refs))
+        self.ways = filtered_ways
+
+        # Saving relations in dictionary by id
+        # deleting the nodes for which we don't have info
+        # deleting the ways for which we don't have info
+        # (because they are out of the requested area)
+        for osmid, tags, relation_members in self.relations:
+            known_members = []
+            for member in relation_members:
+                member_id, member_type, member_role = member
+                if member_type == 'node':
+                    if self.node_is_known(member_id):
+                        known_members.append(member)
+                if member_type == 'way':
+                    if self.way_is_known(member_id):
+                        known_members.append(member)
+                if member_type == 'relation':
+                    print("I didn't save this member".format(member))
+            self.relations_by_id[osmid] = (tags, known_members)
+
         # create geometries
         geoms = []
         way_geoms_by_id = {}
@@ -45,7 +71,7 @@ class Handler(object):
             g.tags = tags
             geoms.append(g)
         for osmid, tags, refs in self.ways:
-            coords = [coords_by_id[x] for x in refs]
+            coords = [self.coords_by_id[x] for x in refs]
             closed = refs[0] == refs[-1]
             if 'highway' in tags or 'barrier' in tags:
                 closed = False
@@ -92,6 +118,38 @@ class Handler(object):
                 g.tags = tags
                 geoms.append(g)
         return geoms
+
+    def discard_unknown_nodes_from_ways(self, nodes_ids):
+        """
+        Iterates over the nodes of the way and discards the ones without known coordinates
+        input way element out of imposm.Parser
+        outputs a list of the known nodes
+        """
+        known_nodes = []
+        for node_id in nodes_ids:
+            if self.node_is_known(node_id):
+                known_nodes.append(node_id)
+            else:
+                return known_nodes  # if one node is not known then the way stops here
+        return known_nodes
+
+    def node_is_known(self, node_id):
+        """
+        returns True if the node id is in the list of coords_by_id.
+        Returns False otherwise
+        """
+        if node_id in self.coords_by_id:
+            return True
+        return False
+
+    def way_is_known(self, way_id):
+        """
+        returns True if the way id is in the list of ways_by_id.
+        Returns False otherwise
+        """
+        if way_id in self.ways_by_id:
+            return True
+        return False
 
 def parse(filename, transform=None):
     handler = Handler(transform)

@@ -26,11 +26,11 @@ CHICAGO = 41.919017, -87.706786
 
 LAT, LNG = CHICAGO
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 TEMP_DIRECTORY = 'temp'
 TEMP_FILENAME = 'overpass_request.xml'
 ROTATION_DEGREES = 0
-MAP_WIDTH_KM = 1
+MAP_WIDTH_KM = 2
 PAGE_WIDTH_IN = 12
 PAGE_HEIGHT_IN = 8.5
 ASPECT_RATIO = PAGE_WIDTH_IN / PAGE_HEIGHT_IN
@@ -48,8 +48,6 @@ def crop_geom(g, w, h):
     return g
 
 def main():
-    # args = sys.argv[1:]
-    # filename = args[0]
     if not DEBUG_MODE:
         print('Debug mode OFF')
         print('Requesting data form Overpass...')
@@ -58,7 +56,7 @@ def main():
         os.makedirs(TEMP_DIRECTORY)
         overpass_api = overpass.API()
         # * unpacks variable and gives it as 4 separate arguments
-        map_query = overpass.MapQuery(*util.query_bounds(LAT, LNG))
+        map_query = overpass.MapQuery(*util.query_bounds(LAT, LNG, distance=0.01))
         response = overpass_api.Get(map_query, responseformat='xml')
         with open(os.path.join(TEMP_DIRECTORY, TEMP_FILENAME), 'w') as file:
             file.write(response.encode('utf-8'))
@@ -91,8 +89,8 @@ def main():
     d = d.sort_paths().join_paths(0.002).simplify_paths(0.002)
     im = d.render(line_width=0.25/25.4)
     im.write_to_png('out.png')
-    raw_input('Press ENTER to continue!')
-    axi.draw(d)
+    # raw_input('Press ENTER to continue!')
+    # axi.draw(d)
 
 if __name__ == '__main__':
     main()
