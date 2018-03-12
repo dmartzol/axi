@@ -3,11 +3,14 @@ from __future__ import division
 from shapely import geometry
 
 import axi
+import overpass
 import layers
 import parser
 import projections
 import sys
+import os
 import util
+
 
 CARY = 35.787196, -78.783337
 BOSTON = 42.3583, -71.0610
@@ -19,9 +22,13 @@ ROME = 41.89306, 12.48308
 # ROME = 41.90813, 12.47330
 ANNECY = 45.89917, 6.12471
 ANNECY = 45.89885, 6.12796
+CHICAGO = 41.919017, -87.706786
 
-LAT, LNG = ANNECY
+LAT, LNG = CHICAGO
 
+DEBUG_MODE = True
+TEMP_DIRECTORY = 'temp'
+TEMP_FILENAME = 'overpass_request.xml'
 ROTATION_DEGREES = 0
 MAP_WIDTH_KM = 1
 PAGE_WIDTH_IN = 12
@@ -41,10 +48,23 @@ def crop_geom(g, w, h):
     return g
 
 def main():
-    args = sys.argv[1:]
-    filename = args[0]
+    # args = sys.argv[1:]
+    # filename = args[0]
+    if not DEBUG_MODE:
+        print('Debug mode OFF')
+        print('Requesting data form Overpass...')
+        if os.path.exists(TEMP_DIRECTORY):
+            raise IOError('Dir already exists')
+        os.makedirs(TEMP_DIRECTORY)
+        overpass_api = overpass.API()
+        # * unpacks variable and gives it as 4 separate arguments
+        map_query = overpass.MapQuery(*util.query_bounds(LAT, LNG))
+        response = overpass_api.Get(map_query, responseformat='xml')
+        with open(os.path.join(TEMP_DIRECTORY, TEMP_FILENAME), 'w') as file:
+            file.write(response.encode('utf-8'))
+
     proj = projections.LambertAzimuthalEqualArea(LNG, LAT, ROTATION_DEGREES)
-    geoms = parser.parse(filename, transform=proj.project)
+    geoms = parser.parse(os.path.join(TEMP_DIRECTORY, TEMP_FILENAME), transform=proj.project)
     print len(geoms)
     w = MAP_WIDTH_KM
     h = w / ASPECT_RATIO

@@ -3,6 +3,13 @@ from __future__ import division
 from shapely import geometry
 import math
 
+def query_bounds(lon, lat, distance=0.0025):
+    x1 = lon - distance
+    x2 = lon + distance
+    y1 = lat - distance
+    y2 = lat + distance
+    return x1, y1, x2, y2
+
 def rectangle(x, y, w, h):
     return [(x, y), (x + w, y), (x + w, y + h), (x, y + h), (x, y)]
 

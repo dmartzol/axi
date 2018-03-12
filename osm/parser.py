@@ -101,5 +101,5 @@ def parse(filename, transform=None):
         nodes_callback=handler.on_nodes,
         ways_callback=handler.on_ways,
         relations_callback=handler.on_relations)
-    p.parse(filename)
+    p.parse_xml_file(filename)
     return handler.create_geometries()
