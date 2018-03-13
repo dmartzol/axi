@@ -1,4 +1,9 @@
 /env
+/.idea
 *.egg-info
 *.pyc
+*.png
+*.svg
+*.pbf
+*.xml
 
