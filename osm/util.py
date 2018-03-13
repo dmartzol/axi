@@ -2,12 +2,36 @@ from __future__ import division
 
 from shapely import geometry
 import math
+from datetime import datetime
+from settings import LAT, LNG, MAP_WIDTH_KM
 
-def query_bounds(lon, lat, distance=0.0025):
-    x1 = lon - distance
-    x2 = lon + distance
-    y1 = lat - distance
-    y2 = lat + distance
+def timestamp():
+    t = datetime.now().time()
+    return t.strftime('%H:%M:%S')
+
+def coords_in_bounds(lat, lon, bounds):
+    x1, y1, x2, y2 = bounds
+    if x1 <= lat <= x2 and y1 <= lon <= y2:
+        return True
+    return False
+
+def query_bounds(lat, lon, distance=0.0025):
+    x1 = lat - distance
+    x2 = lat + distance
+    y1 = lon - distance
+    y2 = lon + distance
+    return x1, y1, x2, y2
+
+def relevant_area_bounds(margin=1):
+    # 1 degree = 111 km
+    # 1 km = 1/111
+    distance = (MAP_WIDTH_KM + margin) / 111.0
+    # m = margin / 111.0
+    # distance = distance + m
+    x1 = LAT - distance
+    x2 = LAT + distance
+    y1 = LNG - distance
+    y2 = LNG + distance
     return x1, y1, x2, y2
 
 def rectangle(x, y, w, h):

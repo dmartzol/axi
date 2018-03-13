@@ -1,5 +1,8 @@
 from imposm.parser import OSMParser
 from shapely import geometry, ops
+from util import timestamp
+import util
+import settings
 
 class Handler(object):
     def __init__(self, transform=None):
@@ -25,16 +28,24 @@ class Handler(object):
             return self.transform(lng, lat)
         return lng, lat
     def create_geometries(self):
+        if settings.VERBOSE:
+            print("Creating lookup tables")
+            print("{} Nodes dictionary".format(timestamp()))
         # create lookup tables
         # Saving coordinates in dictionary coords_by_id
+        bounds = util.relevant_area_bounds()
         for osmid, lng, lat in self.coords:
-            lng, lat = self.transform_point(lng, lat)
-            self.coords_by_id[osmid] = (lng, lat)
+            if util.coords_in_bounds(lat, lng, bounds):
+                lng, lat = self.transform_point(lng, lat)
+                self.coords_by_id[osmid] = (lng, lat)
         for osmid, tags, (lng, lat) in self.nodes:
-            lng, lat = self.transform_point(lng, lat)
-            self.nodes_by_id[osmid] = (lng, lat, tags)
+            if util.coords_in_bounds(lat, lng, bounds):
+                lng, lat = self.transform_point(lng, lat)
+                self.nodes_by_id[osmid] = (lng, lat, tags)
         # deleting the nodes for which we don't have coordinates
         # (because are out of the requested area)
+        if settings.VERBOSE:
+            print("{} Ways dictionary".format(timestamp()))
         filtered_ways = []
         for osmid, tags, refs in self.ways:
             known_nodes = self.discard_unknown_nodes_from_ways(refs)
@@ -48,6 +59,8 @@ class Handler(object):
         # deleting the nodes for which we don't have info
         # deleting the ways for which we don't have info
         # (because they are out of the requested area)
+        if settings.VERBOSE:
+            print("{} Relations dictionary".format(timestamp()))
         for osmid, tags, relation_members in self.relations:
             known_members = []
             for member in relation_members:
@@ -59,17 +72,25 @@ class Handler(object):
                     if self.way_is_known(member_id):
                         known_members.append(member)
                 if member_type == 'relation':
-                    print("I didn't save this member".format(member))
+                    pass
+                    # TODO: do this one day
+                    # print("I didn't save this member yet {}".format(member))  # TODO: do this one day
             self.relations_by_id[osmid] = (tags, known_members)
 
         # create geometries
+        if settings.VERBOSE:
+            print("Creating geometries")
         geoms = []
         way_geoms_by_id = {}
+        if settings.VERBOSE:
+            print("{} Points from nodes".format(timestamp()))
         for osmid, tags, (lng, lat) in self.nodes:
             lng, lat = self.transform_point(lng, lat)
             g = geometry.Point(lng, lat)
             g.tags = tags
             geoms.append(g)
+        if settings.VERBOSE:
+            print("{} Polygons and LineStrings from ways".format(timestamp()))
         for osmid, tags, refs in self.ways:
             coords = [self.coords_by_id[x] for x in refs]
             closed = refs[0] == refs[-1]
@@ -81,11 +102,19 @@ class Handler(object):
                 closed = False
             if closed:
                 g = geometry.Polygon(coords)
+                if not g.is_valid:
+                    #TODO: Save invalid polygons in a file
+                    continue
             else:
                 g = geometry.LineString(coords)
+                if not g.is_valid:
+                    #TODO: Save invalid linestrings in a file
+                    continue
             g.tags = tags
             way_geoms_by_id[osmid] = g
             geoms.append(g)
+        if settings.VERBOSE:
+            print("{} Others from relations".format(timestamp()))
         for osmid, tags, members in self.relations:
             if tags.get('type') == 'multipolygon':
                 outers = []
@@ -151,7 +180,7 @@ class Handler(object):
             return True
         return False
 
-def parse(filename, transform=None):
+def parse(filename, transform=None, extension='.pbf'):
     handler = Handler(transform)
     p = OSMParser(
         concurrency=1,
@@ -159,5 +188,14 @@ def parse(filename, transform=None):
         nodes_callback=handler.on_nodes,
         ways_callback=handler.on_ways,
         relations_callback=handler.on_relations)
-    p.parse_xml_file(filename)
+    if extension == '.xml':
+        if settings.VERBOSE:
+            print("{} Parsing from xml file".format(timestamp()))
+        p.parse_xml_file(filename)
+    else:
+        if settings.VERBOSE:
+            print("{} Parsing from pbf file".format(timestamp()))
+        p.parse(filename)
+        if settings.VERBOSE:
+            print("{} Done parsing".format(timestamp()))
     return handler.create_geometries()
