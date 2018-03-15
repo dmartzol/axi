@@ -3,29 +3,7 @@ from __future__ import division
 from shapely import geometry, ops
 import math
 import util
-
-# LANE_WIDTH_M = 3.7/2
-LANE_WIDTH_M = 12
-
-HIGHWAY_WEIGHTS = {
-    'motorway': 2,
-    'motorway_link': 2,
-    'trunk_link': 2,
-    'trunk': 2,
-    'primary_link': 1.75,
-    'primary': 1.75,
-    'secondary': 1.5,
-    'secondary_link': 1.5,
-    'tertiary_link': 1.25,
-    'tertiary': 1.25,
-    'living_street': 1,
-    'unclassified': 1,
-    'residential': 1,
-    # 'service': 0.1,
-    'pedestrian': 0.5,
-    # 'footway': 0.1,
-    'turning_circle': 3,
-}
+from settings import HIGHWAY_WEIGHTS, LANE_WIDTH_M
 
 def roads(geoms):
     lookup = {}
@@ -44,7 +22,15 @@ def roads(geoms):
 
 def railroads(geoms, decorated_rails=False):
     # Subways are included in railroads
-    gs = [g for g in geoms if 'railway' in g.tags]
+    gs = []
+    # gs = [g for g in geoms if 'railway' in g.tags and g.tags.get('railway') != 'subway']
+    for g in geoms:
+        if 'railway' in g.tags:
+            if g.tags.get('railway') == 'subway':
+                continue
+            if g.tags.get('railway') == 'dismantled':
+                continue
+            gs.append(g)
     if decorated_rails:
         paths = []
         for g in gs:

@@ -1,10 +1,6 @@
 from __future__ import division
 
-from shapely import geometry
-
-import axi
 import overpass
-import layers
 import parser
 import projections
 import sys
@@ -12,19 +8,10 @@ import os
 import util
 import settings
 import time
+import setups
 
 # TODO: Implement better argument parsing
-def crop_geom(g, w, h):
-    tags = g.tags
-    if not g.is_valid:
-        g = g.buffer(0)
-    if g.is_empty:
-        return None
-    g = util.centered_crop(g, w, h)
-    if g.is_empty:
-        return None
-    g.tags = tags
-    return g
+
 
 def main():
     start = time.time()
@@ -58,52 +45,15 @@ def main():
         print("{} geometries.".format(len(geoms)))
     w = settings.MAP_WIDTH_KM
     h = w / settings.ASPECT_RATIO
-    geoms = filter(None, [crop_geom(g, w + 0.1, h + 0.1) for g in geoms])
+    geoms = filter(None, [util.crop_geom(g, w + 0.1, h + 0.1) for g in geoms])
     if settings.VERBOSE:
         print("{} geometries.".format(len(geoms)))
-    # g = geometry.collection.GeometryCollection(geoms)
-    # TODO: Organize this and add default setups
-    roads = layers.roads(geoms)
-    # railroads = layers.railroads(geoms)
-    # buildings = layers.buildings(geoms)
-    water = layers.water(geoms, roads)
-    subway = layers.subway(geoms)
-    river = layers.riverbank(geoms)
-    g = geometry.collection.GeometryCollection([
-        roads,
-        subway,
-        # railroads,
-        # buildings,
-        water,
-        river,
-    ])
 
-    # TODO: Implemente plotting different layers with different colors
-    paths = util.shapely_to_paths(g)
-    paths.append(util.centered_rectangle(w, h))
+    setups.chicago_large(geoms)
 
-    title = 'Chicago'
-    d = axi.Drawing(axi.text(title, axi.FUTURAL))
-    d = d.scale_to_fit(8.5, 12 - 1)
-    # d = d.rotate(-90)
-    d = d.move(12, 8.5 / 2, 1, 0.5)
-    print(d.bounds)
-    paths.extend(d.paths)
-
-    d = axi.Drawing(paths)
-    d = d.translate(w / 2, h / 2)
-    d = d.scale(settings.PAGE_WIDTH_IN / w)
-    d = d.crop_paths(0, 0, settings.PAGE_WIDTH_IN, settings.PAGE_HEIGHT_IN)
-    d = d.remove_paths_outside(settings.PAGE_WIDTH_IN, settings.PAGE_HEIGHT_IN)
-    d = d.sort_paths().join_paths(0.002).simplify_paths(0.002)
-    # d.dump_svg('out.svg')
-    im = d.render(line_width=0.25 / 25.4)
-    im.write_to_png('out.png')
     took = (time.time() - start) / 60
     if settings.VERBOSE:
         print("Took {} minutes.".format(took))
-    # raw_input('Press ENTER to continue!')
-    # axi.draw(d)
 
 if __name__ == '__main__':
     main()

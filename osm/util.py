@@ -135,3 +135,15 @@ def interpolated_points(g, step):
         result.append((p.x, p.y, angle))
         d += step
     return result
+
+def crop_geom(g, w, h):
+    tags = g.tags
+    if not g.is_valid:
+        g = g.buffer(0)
+    if g.is_empty:
+        return None
+    g = util.centered_crop(g, w, h)
+    if g.is_empty:
+        return None
+    g.tags = tags
+    return g
