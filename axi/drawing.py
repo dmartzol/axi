@@ -5,7 +5,7 @@ from math import sin, cos, radians
 from .paths import simplify_paths, sort_paths, join_paths, crop_paths
 
 try:
-    import cairo
+    import cairocffi as cairo
 except ImportError:
     cairo = None
 
@@ -28,6 +28,29 @@ class Drawing(object):
         for path in self.paths:
             lines.append(' '.join('%f,%f' % (x, y) for x, y in path))
         return '\n'.join(lines)
+
+    def dumps_svg(self, scale=96):
+        lines = []
+        w = (self.width + 2) * scale
+        h = (self.height + 2) * scale
+        lines.append('<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="%g" height="%g">' % (w, h))
+        lines.append('<g transform="scale(%g) translate(1 1)">' % scale)
+        for path in self.paths:
+            p = []
+            c = 'M'
+            for x, y in path:
+                p.append('%s%g %g' % (c, x, y))
+                c = 'L'
+            d = ' '.join(p)
+            lines.append(
+                '<path d="%s" fill="none" stroke="black" stroke-width="0.01" stroke-linecap="round" stroke-linejoin="round" />' % d)
+        lines.append('</g>')
+        lines.append('</svg>')
+        return '\n'.join(lines)
+
+    def dump_svg(self, filename):
+        with open(filename, 'w') as fp:
+            fp.write(self.dumps_svg())
 
     @property
     def bounds(self):
