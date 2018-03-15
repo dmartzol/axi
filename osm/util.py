@@ -142,7 +142,7 @@ def crop_geom(g, w, h):
         g = g.buffer(0)
     if g.is_empty:
         return None
-    g = util.centered_crop(g, w, h)
+    g = centered_crop(g, w, h)
     if g.is_empty:
         return None
     g.tags = tags

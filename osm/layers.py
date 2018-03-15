@@ -21,16 +21,14 @@ def roads(geoms):
     return ops.cascaded_union(result)
 
 def railroads(geoms, decorated_rails=False):
-    # Subways are included in railroads
-    gs = []
+    # Subways are not included in railroads
+    # gs = []
     # gs = [g for g in geoms if 'railway' in g.tags and g.tags.get('railway') != 'subway']
-    for g in geoms:
-        if 'railway' in g.tags:
-            if g.tags.get('railway') == 'subway':
-                continue
-            if g.tags.get('railway') == 'dismantled':
-                continue
-            gs.append(g)
+    gs = [g for g in geoms if g.tags.get('railway') == 'rail']
+    # for g in geoms:
+    #     if 'railway' in g.tags:
+    #         if g.tags.get('railway') != 'subway' and g.tags.get('railway') != 'dismantled':
+    #             gs.append(g)
     if decorated_rails:
         paths = []
         for g in gs:
